@@ -59,7 +59,7 @@ namespace CaraParticles
         //Запись положения точки
         public void logPosition(StringBuilder c, StringBuilder k)
         {
-            var csvLine = string.Format("{0};{1};{2}\n", xCoordinate, yCoordinate, t);
+            var csvLine = string.Format("{0};{1};{2}\n", yCoordinate, xCoordinate, t);
             var kmlLine = string.Format("{0},{1},0\n", xCoordinate.ToString("G", CultureInfo.InvariantCulture), yCoordinate.ToString("G", CultureInfo.InvariantCulture));
             Console.WriteLine(csvLine);
             c.Append(csvLine);
@@ -83,6 +83,11 @@ namespace CaraParticles
                     Vs = v.Utr / 0.4 * Math.Pow(Math.Pow(Math.PI / 2.0, 2) + Math.Pow((-1.15 + Math.Log((0.4 * v.Utr * 30.0) / (0.05 * 0.00014), Math.E)), 2), 0.5);
                     Fis = -10.0 / 180.0;
                     break;
+                case 3:
+                    // Третий случай
+                    Vs = 1.5 * v.Utr / 0.4 * Math.Pow(Math.Pow(Math.PI / 2.0, 2) + Math.Pow((-1.15 + Math.Log((0.4 * v.Utr * 30.0) / (0.05 * 0.00014), Math.E)), 2), 0.5);
+                    Fis = -50.0 / 180.0;
+                    break;
             }
 
             this.y += deltaT * Vs * Math.Sin(v.Fi + Fis);
@@ -94,12 +99,44 @@ namespace CaraParticles
     //Вектор
     public class Vector
     {
-        public double xComponent;
-        public double yComponent;
+        private double _xComponent;
+        private double _yComponent;
+        private double _W;
+        private double _Fi;
+        private bool _wManual;
+        private bool _fiManual;
+
+        public Vector()
+        {
+            _wManual = false;
+            _fiManual = false;
+        }
+
+        public double xComponent       
+        {
+            get { return _xComponent; }
+            set { _xComponent = value; }
+        }
+
+        public double yComponent
+        {
+            get { return _yComponent; }
+            set { _yComponent = value; }
+        }
         //Модуль вектора
-        public double W { get { return Math.Pow((Math.Pow(xComponent, 2) + Math.Pow(yComponent, 2)), 0.5); } }
+        public double W {
+            get { return _wManual ? _W : Math.Pow((Math.Pow(_xComponent, 2) + Math.Pow(_yComponent, 2)), 0.5); }
+            set { _W = value;
+                  _wManual = true;
+                }
+        }
         //Угол поворота вектора
-        public double Fi { get { return xComponent < 0 ? Math.Atan(yComponent / xComponent) + Math.PI : Math.Atan(yComponent / xComponent); } }
+        public double Fi { 
+            get { return _fiManual ? _Fi : (_xComponent < 0 ? Math.Atan(_yComponent / _xComponent) + Math.PI : Math.Atan(_yComponent / _xComponent)); }
+            set { _Fi = value;
+                  _fiManual = true; 
+                }
+        }
     }
 
     //Ветер
@@ -114,6 +151,9 @@ namespace CaraParticles
     {
         // Метод расчета
         public static int calculationMethod;
+
+        // Способ интерполяции
+        public static int interpolationMethod;
 
         //Время пока можно двигаться
         private static DateTime _tBorder = new DateTime(2007, 11, 1, 0, 0, 0);
@@ -165,12 +205,29 @@ namespace CaraParticles
         private static Wind getWind(Position point)
         {
             Vector v = interpolate(point);
+            Wind W = null;
             if (v != null)
-                return new Wind
+            {
+                switch(interpolationMethod)
                 {
-                    xComponent = v.xComponent,
-                    yComponent = v.yComponent
-                };
+                    case 1:
+                    W = new Wind
+                    {
+                        xComponent = v.xComponent,
+                        yComponent = v.yComponent
+                    };
+                    break;
+
+                    case 2:
+                    W = new Wind
+                    {
+                        W = v.W,
+                        Fi = v.Fi
+                    };
+                    break;
+                }
+                return W;
+            }
             else return null;
         }
 
@@ -213,21 +270,21 @@ namespace CaraParticles
         private static Vector getWindComponentsInNode(Position point)
         {
             return new Vector
-            {
-                xComponent = Convert.ToDouble(windData.AsEnumerable().FirstOrDefault(r => Math.Round(Convert.ToDouble(r.Field<string>(5), CultureInfo.InvariantCulture), 4) == point.xCoordinate
+                    {
+                        xComponent = Convert.ToDouble(windData.AsEnumerable().FirstOrDefault(r => Math.Round(Convert.ToDouble(r.Field<string>(5), CultureInfo.InvariantCulture), 4) == point.xCoordinate
                                                                 && Math.Round(Convert.ToDouble(r.Field<string>(4), CultureInfo.InvariantCulture), 4) == point.yCoordinate
                                                                 && Convert.ToInt32(r.Field<string>(0), CultureInfo.InvariantCulture) == point.t.Year
                                                                 && Convert.ToInt32(r.Field<string>(1), CultureInfo.InvariantCulture) == point.t.Month
                                                                 && Convert.ToInt32(r.Field<string>(2), CultureInfo.InvariantCulture) == point.t.Day
                                                                 && Convert.ToInt32(r.Field<string>(3), CultureInfo.InvariantCulture) == point.t.Hour).Field<string>(6), CultureInfo.InvariantCulture),
 
-                yComponent = Convert.ToDouble(windData.AsEnumerable().FirstOrDefault(r => Math.Round(Convert.ToDouble(r.Field<string>(5), CultureInfo.InvariantCulture), 4) == point.xCoordinate
+                        yComponent = Convert.ToDouble(windData.AsEnumerable().FirstOrDefault(r => Math.Round(Convert.ToDouble(r.Field<string>(5), CultureInfo.InvariantCulture), 4) == point.xCoordinate
                                                                 && Math.Round(Convert.ToDouble(r.Field<string>(4), CultureInfo.InvariantCulture), 4) == point.yCoordinate
                                                                 && Convert.ToInt32(r.Field<string>(0), CultureInfo.InvariantCulture) == point.t.Year
                                                                 && Convert.ToInt32(r.Field<string>(1), CultureInfo.InvariantCulture) == point.t.Month
                                                                 && Convert.ToInt32(r.Field<string>(2), CultureInfo.InvariantCulture) == point.t.Day
                                                                 && Convert.ToInt32(r.Field<string>(3), CultureInfo.InvariantCulture) == point.t.Hour).Field<string>(7), CultureInfo.InvariantCulture)
-            };
+                    };
         }
 
         //Вычисление интерполированного значения
@@ -238,12 +295,13 @@ namespace CaraParticles
             double xMax = 0;
             double yMin = 0;
             double yMax = 0;
+            Vector v = null;
+
             //Для Y мало точек и не равномерная сетка, поэтому перебор
             if (point.yCoordinate > 75.2351 && point.yCoordinate <= 77.1394) { yMin = 75.2351; yMax = 77.1394; }
             else if (point.yCoordinate > 73.3307 && point.yCoordinate <= 75.2351) { yMin = 73.3307; yMax = 75.2351; }
             else if (point.yCoordinate > 71.4262 && point.yCoordinate <= 73.3307) { yMin = 71.4262; yMax = 73.3307; }
             else if (point.yCoordinate >= 69.5217 && point.yCoordinate <= 71.4262) { yMin = 69.5217; yMax = 71.4262; };
-
 
             //Для X сетка равномерная, можно посчитать по формуле
             if (point.xCoordinate >= 50.625 && point.xCoordinate <= 95.625)
@@ -260,18 +318,39 @@ namespace CaraParticles
                 Vector v3 = getWindComponentsInNode(new Position { xCoordinate = xMin, yCoordinate = yMax, t = point.t });
                 Vector v4 = getWindComponentsInNode(new Position { xCoordinate = xMax, yCoordinate = yMax, t = point.t });
 
-                return new Vector
+                switch (interpolationMethod)
                 {
-                    xComponent = v1.xComponent * (xMax - point.xCoordinate) * (yMax - point.yCoordinate) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
-                                 v2.xComponent * (point.xCoordinate - xMin) * (yMax - point.yCoordinate) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
-                                 v3.xComponent * (xMax - point.xCoordinate) * (point.yCoordinate - yMin) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
-                                 v4.xComponent * (point.xCoordinate - xMin) * (point.yCoordinate - yMin) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)),
+                    case 1:
 
-                    yComponent = v1.yComponent * (xMax - point.xCoordinate) * (yMax - point.yCoordinate) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
-                                 v2.yComponent * (point.xCoordinate - xMin) * (yMax - point.yCoordinate) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
-                                 v3.yComponent * (xMax - point.xCoordinate) * (point.yCoordinate - yMin) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
-                                 v4.yComponent * (point.xCoordinate - xMin) * (point.yCoordinate - yMin) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin))
-                };
+                        v = new Vector
+                        {
+                            xComponent = v1.xComponent * (xMax - point.xCoordinate) * (yMax - point.yCoordinate) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
+                                         v2.xComponent * (point.xCoordinate - xMin) * (yMax - point.yCoordinate) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
+                                         v3.xComponent * (xMax - point.xCoordinate) * (point.yCoordinate - yMin) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
+                                         v4.xComponent * (point.xCoordinate - xMin) * (point.yCoordinate - yMin) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)),
+
+                            yComponent = v1.yComponent * (xMax - point.xCoordinate) * (yMax - point.yCoordinate) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
+                                         v2.yComponent * (point.xCoordinate - xMin) * (yMax - point.yCoordinate) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
+                                         v3.yComponent * (xMax - point.xCoordinate) * (point.yCoordinate - yMin) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
+                                         v4.yComponent * (point.xCoordinate - xMin) * (point.yCoordinate - yMin) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin))
+                        };
+                        break;
+                    case 2:
+                        v = new Vector
+                        {
+                            W = v1.W * (xMax - point.xCoordinate) * (yMax - point.yCoordinate) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
+                                v2.W * (point.xCoordinate - xMin) * (yMax - point.yCoordinate) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
+                                v3.W * (xMax - point.xCoordinate) * (point.yCoordinate - yMin) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
+                                v4.W * (point.xCoordinate - xMin) * (point.yCoordinate - yMin) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)),
+
+                            Fi = v1.Fi * (xMax - point.xCoordinate) * (yMax - point.yCoordinate) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
+                                 v2.Fi * (point.xCoordinate - xMin) * (yMax - point.yCoordinate) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
+                                 v3.Fi * (xMax - point.xCoordinate) * (point.yCoordinate - yMin) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
+                                 v4.Fi * (point.xCoordinate - xMin) * (point.yCoordinate - yMin) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin))
+                        };
+                        break;
+                }
+                return v;
             }
             else return null;
         }

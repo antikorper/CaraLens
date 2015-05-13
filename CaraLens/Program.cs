@@ -32,14 +32,16 @@ namespace CaraParticles
 
             Mover.readWindData(dir + "uv2007MayNov.dat");
             Mover.kml.Append(kmlHead);
-            Console.WriteLine(string.Format("First point: {0}; {1}; {2}", firstPoint.xCoordinate, firstPoint.yCoordinate, firstPoint.t));
+            Console.WriteLine(string.Format("First point: {0}; {1}; {2}", firstPoint.yCoordinate, firstPoint.xCoordinate, firstPoint.t));
 
-            //Выбираем расчетный метод
-            Mover.calculationMethod = 1;
+            //Выбираем расчетный метод и способ интерполяции
+            Mover.calculationMethod = 3;
+            Mover.interpolationMethod = 2;
+
             //Основной метод
             Position lastPoint = Mover.getPosition(firstPoint);
 
-            Console.WriteLine(string.Format("Last point: {0}; {1}; {2}", lastPoint.xCoordinate, lastPoint.yCoordinate, lastPoint.t));
+            Console.WriteLine(string.Format("Last point: {0}; {1}; {2}", lastPoint.yCoordinate, lastPoint.xCoordinate, lastPoint.t));
             Mover.kml.Append(kmlTale);
 
             //Формирование файлов
