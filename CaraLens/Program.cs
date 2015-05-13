@@ -45,8 +45,8 @@ namespace CaraParticles
             Mover.kml.Append(kmlTale);
 
             //Формирование файлов
-            File.WriteAllText(dir + "output_" + Mover.calculationMethod.ToString() + ".kml", Mover.kml.ToString());
-            File.WriteAllText(dir + "output_" + Mover.calculationMethod.ToString() + ".csv", Mover.csv.ToString());
+            File.WriteAllText(dir + "output_" + Mover.calculationMethod.ToString() + "_" + Mover.interpolationMethod.ToString() + ".kml", Mover.kml.ToString());
+            File.WriteAllText(dir + "output_" + Mover.calculationMethod.ToString() + "_" + Mover.interpolationMethod.ToString() + ".csv", Mover.csv.ToString());
 
             Console.ReadKey();
         }
