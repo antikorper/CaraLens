@@ -22,7 +22,7 @@ namespace CaraParticles
             set
             {
                 _x = value;
-                _xCoordinate = Math.Round(78.0 + value / (111320.0 * Math.Cos(_yCoordinate / 180.0)), 4);
+                _xCoordinate = Math.Round(78.0 + value / (111320.0 * Math.Cos(_yCoordinate * Math.PI / 180.0)), 4);
             }
         }
 
@@ -36,14 +36,14 @@ namespace CaraParticles
             }
         }
 
-        //Географическая координата X
+        //Долгота
         public double xCoordinate
         {
             get { return _xCoordinate; }
             set { _xCoordinate = value; }
         }
 
-        //Географическая координата Y
+        //Широта
         public double yCoordinate
         {
             get { return _yCoordinate; }
@@ -81,12 +81,12 @@ namespace CaraParticles
                 case 2:
                     // Второй случай
                     Vs = v.Utr / 0.4 * Math.Pow(Math.Pow(Math.PI / 2.0, 2) + Math.Pow((-1.15 + Math.Log((0.4 * v.Utr * 30.0) / (0.05 * 0.00014), Math.E)), 2), 0.5);
-                    Fis = -10.0 / 180.0;
+                    Fis = -10.0 * Math.PI / 180.0;
                     break;
                 case 3:
                     // Третий случай
                     Vs = 1.5 * v.Utr / 0.4 * Math.Pow(Math.Pow(Math.PI / 2.0, 2) + Math.Pow((-1.15 + Math.Log((0.4 * v.Utr * 30.0) / (0.05 * 0.00014), Math.E)), 2), 0.5);
-                    Fis = -50.0 / 180.0;
+                    Fis = -50.0 * Math.PI / 180.0;
                     break;
             }
 
@@ -97,54 +97,49 @@ namespace CaraParticles
     }
 
     //Вектор
-    public class Vector
+    public class Wind
     {
-        private double _xComponent;
-        private double _yComponent;
-        private double _W;
-        private double _Fi;
-        private bool _wManual;
-        private bool _fiManual;
+        private double _uComponent;
+        private double _vComponent;
+        private double? _Fi;
+        private double? _Utr;
 
-        public Vector()
+        public double uComponent
         {
-            _wManual = false;
-            _fiManual = false;
+            get { return _uComponent; }
+            set { _uComponent = value; }
         }
 
-        public double xComponent       
+        public double vComponent
         {
-            get { return _xComponent; }
-            set { _xComponent = value; }
+            get { return _vComponent; }
+            set { _vComponent = value; }
         }
 
-        public double yComponent
-        {
-            get { return _yComponent; }
-            set { _yComponent = value; }
-        }
         //Модуль вектора
-        public double W {
-            get { return _wManual ? _W : Math.Pow((Math.Pow(_xComponent, 2) + Math.Pow(_yComponent, 2)), 0.5); }
-            set { _W = value;
-                  _wManual = true;
-                }
+        public double W
+        {
+            get { return Math.Pow((Math.Pow(_uComponent, 2) + Math.Pow(_vComponent, 2)), 0.5); }
         }
-        //Угол поворота вектора
-        public double Fi { 
-            get { return _fiManual ? _Fi : (_xComponent < 0 ? Math.Atan(_yComponent / _xComponent) + Math.PI : Math.Atan(_yComponent / _xComponent)); }
-            set { _Fi = value;
-                  _fiManual = true; 
-                }
-        }
-    }
 
-    //Ветер
-    public class Wind : Vector
-    {
-        public double Cd { get { return W <= 10.0 ? 1.14 / 1000.0 : (0.49 + 0.065 * W) / 1000.0; } }
+        //Угол поворота вектора
+        public double Fi
+        {
+            get { return _Fi != null ? _Fi.Value : Math.Atan2(_vComponent, _uComponent); }
+            set { _Fi = value; }
+        }
+
+        public double Cd
+        {
+            get { return W <= 10.0 ? 1.14 / 1000.0 : (0.49 + 0.065 * W) / 1000.0; }
+        }
+
         //Напряжение трения ветра
-        public double Utr { get { return Math.Pow(1.28 * Cd / 1000.0, 0.5) * W; } }
+        public double Utr
+        {
+            get { return _Utr != null ? _Utr.Value : Math.Pow(1.28 * Cd / 1000.0, 0.5) * W; }
+            set { _Utr = value; }
+        }
     }
 
     public static class Mover
@@ -204,27 +199,27 @@ namespace CaraParticles
         //Определяем ветр в точке
         private static Wind getWind(Position point)
         {
-            Vector v = interpolate(point);
+            Wind v = interpolate(point);
             Wind W = null;
             if (v != null)
             {
-                switch(interpolationMethod)
+                switch (interpolationMethod)
                 {
                     case 1:
-                    W = new Wind
-                    {
-                        xComponent = v.xComponent,
-                        yComponent = v.yComponent
-                    };
-                    break;
+                        W = new Wind
+                        {
+                            uComponent = v.uComponent,
+                            vComponent = v.vComponent
+                        };
+                        break;
 
                     case 2:
-                    W = new Wind
-                    {
-                        W = v.W,
-                        Fi = v.Fi
-                    };
-                    break;
+                        W = new Wind
+                        {
+                            Utr = v.Utr,
+                            Fi = v.Fi
+                        };
+                        break;
                 }
                 return W;
             }
@@ -267,35 +262,35 @@ namespace CaraParticles
         }
 
         //Поиск значений компонетов ветра в узлах из загруженного массива 
-        private static Vector getWindComponentsInNode(Position point)
+        private static Wind getWindComponentsInNode(Position point)
         {
-            return new Vector
-                    {
-                        xComponent = Convert.ToDouble(windData.AsEnumerable().FirstOrDefault(r => Math.Round(Convert.ToDouble(r.Field<string>(5), CultureInfo.InvariantCulture), 4) == point.xCoordinate
-                                                                && Math.Round(Convert.ToDouble(r.Field<string>(4), CultureInfo.InvariantCulture), 4) == point.yCoordinate
-                                                                && Convert.ToInt32(r.Field<string>(0), CultureInfo.InvariantCulture) == point.t.Year
-                                                                && Convert.ToInt32(r.Field<string>(1), CultureInfo.InvariantCulture) == point.t.Month
-                                                                && Convert.ToInt32(r.Field<string>(2), CultureInfo.InvariantCulture) == point.t.Day
-                                                                && Convert.ToInt32(r.Field<string>(3), CultureInfo.InvariantCulture) == point.t.Hour).Field<string>(6), CultureInfo.InvariantCulture),
+            return new Wind
+            {
+                uComponent = Convert.ToDouble(windData.AsEnumerable().FirstOrDefault(r => Math.Round(Convert.ToDouble(r.Field<string>(5), CultureInfo.InvariantCulture), 4) == point.xCoordinate
+                                                        && Math.Round(Convert.ToDouble(r.Field<string>(4), CultureInfo.InvariantCulture), 4) == point.yCoordinate
+                                                        && Convert.ToInt32(r.Field<string>(0), CultureInfo.InvariantCulture) == point.t.Year
+                                                        && Convert.ToInt32(r.Field<string>(1), CultureInfo.InvariantCulture) == point.t.Month
+                                                        && Convert.ToInt32(r.Field<string>(2), CultureInfo.InvariantCulture) == point.t.Day
+                                                        && Convert.ToInt32(r.Field<string>(3), CultureInfo.InvariantCulture) == point.t.Hour).Field<string>(6), CultureInfo.InvariantCulture),
 
-                        yComponent = Convert.ToDouble(windData.AsEnumerable().FirstOrDefault(r => Math.Round(Convert.ToDouble(r.Field<string>(5), CultureInfo.InvariantCulture), 4) == point.xCoordinate
-                                                                && Math.Round(Convert.ToDouble(r.Field<string>(4), CultureInfo.InvariantCulture), 4) == point.yCoordinate
-                                                                && Convert.ToInt32(r.Field<string>(0), CultureInfo.InvariantCulture) == point.t.Year
-                                                                && Convert.ToInt32(r.Field<string>(1), CultureInfo.InvariantCulture) == point.t.Month
-                                                                && Convert.ToInt32(r.Field<string>(2), CultureInfo.InvariantCulture) == point.t.Day
-                                                                && Convert.ToInt32(r.Field<string>(3), CultureInfo.InvariantCulture) == point.t.Hour).Field<string>(7), CultureInfo.InvariantCulture)
-                    };
+                vComponent = Convert.ToDouble(windData.AsEnumerable().FirstOrDefault(r => Math.Round(Convert.ToDouble(r.Field<string>(5), CultureInfo.InvariantCulture), 4) == point.xCoordinate
+                                                        && Math.Round(Convert.ToDouble(r.Field<string>(4), CultureInfo.InvariantCulture), 4) == point.yCoordinate
+                                                        && Convert.ToInt32(r.Field<string>(0), CultureInfo.InvariantCulture) == point.t.Year
+                                                        && Convert.ToInt32(r.Field<string>(1), CultureInfo.InvariantCulture) == point.t.Month
+                                                        && Convert.ToInt32(r.Field<string>(2), CultureInfo.InvariantCulture) == point.t.Day
+                                                        && Convert.ToInt32(r.Field<string>(3), CultureInfo.InvariantCulture) == point.t.Hour).Field<string>(7), CultureInfo.InvariantCulture)
+            };
         }
 
         //Вычисление интерполированного значения
-        private static Vector interpolate(Position point)
+        private static Wind interpolate(Position point)
         {
             //Узлы ячейки, куда попала точка
             double xMin = 0;
             double xMax = 0;
             double yMin = 0;
             double yMax = 0;
-            Vector v = null;
+            Wind v = null;
 
             //Для Y мало точек и не равномерная сетка, поэтому перебор
             if (point.yCoordinate > 75.2351 && point.yCoordinate <= 77.1394) { yMin = 75.2351; yMax = 77.1394; }
@@ -313,35 +308,35 @@ namespace CaraParticles
             //Если удалось определить все узлы ячейки, то все хорошо и можно интерполировать
             if (xMin * xMax * yMin * yMax != 0)
             {
-                Vector v1 = getWindComponentsInNode(new Position { xCoordinate = xMin, yCoordinate = yMin, t = point.t });
-                Vector v2 = getWindComponentsInNode(new Position { xCoordinate = xMax, yCoordinate = yMin, t = point.t });
-                Vector v3 = getWindComponentsInNode(new Position { xCoordinate = xMin, yCoordinate = yMax, t = point.t });
-                Vector v4 = getWindComponentsInNode(new Position { xCoordinate = xMax, yCoordinate = yMax, t = point.t });
+                Wind v1 = getWindComponentsInNode(new Position { xCoordinate = xMin, yCoordinate = yMin, t = point.t });
+                Wind v2 = getWindComponentsInNode(new Position { xCoordinate = xMax, yCoordinate = yMin, t = point.t });
+                Wind v3 = getWindComponentsInNode(new Position { xCoordinate = xMin, yCoordinate = yMax, t = point.t });
+                Wind v4 = getWindComponentsInNode(new Position { xCoordinate = xMax, yCoordinate = yMax, t = point.t });
 
                 switch (interpolationMethod)
                 {
                     case 1:
-
-                        v = new Vector
+                        v = new Wind
                         {
-                            xComponent = v1.xComponent * (xMax - point.xCoordinate) * (yMax - point.yCoordinate) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
-                                         v2.xComponent * (point.xCoordinate - xMin) * (yMax - point.yCoordinate) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
-                                         v3.xComponent * (xMax - point.xCoordinate) * (point.yCoordinate - yMin) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
-                                         v4.xComponent * (point.xCoordinate - xMin) * (point.yCoordinate - yMin) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)),
+                            uComponent = v1.uComponent * (xMax - point.xCoordinate) * (yMax - point.yCoordinate) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
+                                         v2.uComponent * (point.xCoordinate - xMin) * (yMax - point.yCoordinate) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
+                                         v3.uComponent * (xMax - point.xCoordinate) * (point.yCoordinate - yMin) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
+                                         v4.uComponent * (point.xCoordinate - xMin) * (point.yCoordinate - yMin) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)),
 
-                            yComponent = v1.yComponent * (xMax - point.xCoordinate) * (yMax - point.yCoordinate) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
-                                         v2.yComponent * (point.xCoordinate - xMin) * (yMax - point.yCoordinate) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
-                                         v3.yComponent * (xMax - point.xCoordinate) * (point.yCoordinate - yMin) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
-                                         v4.yComponent * (point.xCoordinate - xMin) * (point.yCoordinate - yMin) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin))
+                            vComponent = v1.vComponent * (xMax - point.xCoordinate) * (yMax - point.yCoordinate) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
+                                         v2.vComponent * (point.xCoordinate - xMin) * (yMax - point.yCoordinate) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
+                                         v3.vComponent * (xMax - point.xCoordinate) * (point.yCoordinate - yMin) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
+                                         v4.vComponent * (point.xCoordinate - xMin) * (point.yCoordinate - yMin) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin))
                         };
                         break;
+
                     case 2:
-                        v = new Vector
+                        v = new Wind
                         {
-                            W = v1.W * (xMax - point.xCoordinate) * (yMax - point.yCoordinate) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
-                                v2.W * (point.xCoordinate - xMin) * (yMax - point.yCoordinate) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
-                                v3.W * (xMax - point.xCoordinate) * (point.yCoordinate - yMin) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
-                                v4.W * (point.xCoordinate - xMin) * (point.yCoordinate - yMin) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)),
+                            Utr = v1.Utr * (xMax - point.xCoordinate) * (yMax - point.yCoordinate) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
+                                  v2.Utr * (point.xCoordinate - xMin) * (yMax - point.yCoordinate) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
+                                  v3.Utr * (xMax - point.xCoordinate) * (point.yCoordinate - yMin) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
+                                  v4.Utr * (point.xCoordinate - xMin) * (point.yCoordinate - yMin) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)),
 
                             Fi = v1.Fi * (xMax - point.xCoordinate) * (yMax - point.yCoordinate) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
                                  v2.Fi * (point.xCoordinate - xMin) * (yMax - point.yCoordinate) * (1.0 / (xMax - xMin)) * (1.0 / (yMax - yMin)) +
@@ -354,7 +349,5 @@ namespace CaraParticles
             }
             else return null;
         }
-
     }
-
 }

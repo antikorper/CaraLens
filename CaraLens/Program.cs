@@ -27,9 +27,6 @@ namespace CaraParticles
                              "<kml xmlns=\"http://earth.google.com/kml/2.0\">" +
                             "<Document>\n<Placemark>\n<LineString>\n<coordinates>";
 
-            string kmlTale = " </coordinates>\n</LineString>\n<Style>\n<LineStyle>\n<color>ff000000</color>" +
-                            "\n<width>5</width></LineStyle>\n</Style>\n</Placemark>\n</Document>\n</kml>";
-
             Mover.readWindData(dir + "uv2007MayNov.dat");
             Mover.kml.Append(kmlHead);
             Console.WriteLine(string.Format("First point: {0}; {1}; {2}", firstPoint.yCoordinate, firstPoint.xCoordinate, firstPoint.t));
@@ -38,6 +35,23 @@ namespace CaraParticles
             Mover.calculationMethod = 3;
             Mover.interpolationMethod = 2;
 
+            string lineColor = "";
+            switch (Mover.calculationMethod)
+            {
+                case 1:
+                    lineColor = "ff000000";
+                    break;
+                case 2:
+                    lineColor = "50F00014";
+                    break;
+                case 3:
+                    lineColor = "501400B4";
+                    break;
+            }
+
+            string kmlTale = string.Format(" </coordinates>\n</LineString>\n<Style>\n<LineStyle>\n<color>{0}</color>", lineColor) +
+                            "\n<width>4</width></LineStyle>\n</Style>\n</Placemark>\n</Document>\n</kml>";
+
             //Основной метод
             Position lastPoint = Mover.getPosition(firstPoint);
 
@@ -45,8 +59,8 @@ namespace CaraParticles
             Mover.kml.Append(kmlTale);
 
             //Формирование файлов
-            File.WriteAllText(dir + "output_" + Mover.calculationMethod.ToString() + "_" + Mover.interpolationMethod.ToString() + ".kml", Mover.kml.ToString());
-            File.WriteAllText(dir + "output_" + Mover.calculationMethod.ToString() + "_" + Mover.interpolationMethod.ToString() + ".csv", Mover.csv.ToString());
+            File.WriteAllText(string.Format("{0}output_{1}_{2}.kml", dir, Mover.calculationMethod, Mover.interpolationMethod), Mover.kml.ToString());
+            File.WriteAllText(string.Format("{0}output_{1}_{2}.csv", dir, Mover.calculationMethod, Mover.interpolationMethod), Mover.csv.ToString());
 
             Console.ReadKey();
         }
