@@ -23,18 +23,19 @@ namespace CaraParticles
 
             //string dir = "C:\\Users\\lyzhkovda\\!Work items\\DEV\\CaraParticles\\";
             string dir = "c:\\Users\\Dmitry\\!Аспирантура\\Caradag\\";
-            string kmlHead = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
-                             "<kml xmlns=\"http://earth.google.com/kml/2.0\">" +
-                            "<Document>\n<Placemark>\n<LineString>\n<coordinates>";
-
             Mover.readWindData(dir + "uv2007MayNov.dat");
-            Mover.kml.Append(kmlHead);
+ 
             Console.WriteLine(string.Format("First point: {0}; {1}; {2}", firstPoint.yCoordinate, firstPoint.xCoordinate, firstPoint.t));
 
             //Выбираем расчетный метод и способ интерполяции
-            Mover.calculationMethod = 3;
+            Mover.calculationMethod = 1;
             Mover.interpolationMethod = 2;
 
+            #region KMLsettings
+            string kmlHead = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
+                             "<kml xmlns=\"http://earth.google.com/kml/2.0\">" +
+                            "<Document>\n<Placemark>\n<LineString>\n<coordinates>";
+            Mover.kml.Append(kmlHead);
             string lineColor = "";
             switch (Mover.calculationMethod)
             {
@@ -51,6 +52,7 @@ namespace CaraParticles
 
             string kmlTale = string.Format(" </coordinates>\n</LineString>\n<Style>\n<LineStyle>\n<color>{0}</color>", lineColor) +
                             "\n<width>4</width></LineStyle>\n</Style>\n</Placemark>\n</Document>\n</kml>";
+            #endregion
 
             //Основной метод
             Position lastPoint = Mover.getPosition(firstPoint);

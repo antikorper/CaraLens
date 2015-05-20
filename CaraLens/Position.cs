@@ -61,7 +61,7 @@ namespace CaraParticles
         {
             var csvLine = string.Format("{0};{1};{2}\n", yCoordinate, xCoordinate, t);
             var kmlLine = string.Format("{0},{1},0\n", xCoordinate.ToString("G", CultureInfo.InvariantCulture), yCoordinate.ToString("G", CultureInfo.InvariantCulture));
-            Console.WriteLine(csvLine);
+            //Console.WriteLine(csvLine);
             c.Append(csvLine);
             k.Append(kmlLine);
         }
@@ -125,7 +125,12 @@ namespace CaraParticles
         //Угол поворота вектора
         public double Fi
         {
-            get { return _Fi != null ? _Fi.Value : Math.Atan2(_vComponent, _uComponent); }
+            get
+            {
+                return _Fi != null ? _Fi.Value : /*Math.Atan2(_vComponent, _uComponent)*/ (_uComponent < 0 ? Math.Atan(_vComponent / _uComponent) + Math.PI : Math.Atan(_vComponent / _uComponent)) < 0 ?
+                    (_uComponent < 0 ? Math.Atan(_vComponent / _uComponent) + Math.PI : Math.Atan(_vComponent / _uComponent)) :
+                    (_uComponent < 0 ? Math.Atan(_vComponent / _uComponent) + Math.PI : Math.Atan(_vComponent / _uComponent)) + Math.PI * 2;
+            }
             set { _Fi = value; }
         }
 
